@@ -29,13 +29,15 @@ export async function POST(req: Request) {
     try {
         // connect to database
         await connectDB();
-        
-        // check if user already exists
-        const user = await User.findOne({
-            $or: [{ username }, { email }],
-        });
+
+        // check if user or email already exists and sent a message error with especific message if email or username already exists
+        const user = await User.findOne({ $or: [{ email }, { username }] });
         if (user) {
-            return NextResponse.json({ message: "User already exists" }, { status: 400 });
+            if (user.email === email) {
+                return NextResponse.json({ message: "Email already exists" }, { status: 400 });
+            } else {
+                return NextResponse.json({ message: "Username already exists" }, { status: 400 });
+            }
         }
         // hash password
         const salt = await bcrypt.genSalt(12); // generate salt with 12 rounds 
@@ -48,9 +50,15 @@ export async function POST(req: Request) {
         console.log(savedUser);
 
         // return response
-        return NextResponse.json(savedUser, { status: 201 });
+        return NextResponse.json({
+            message: "User created successfully",
+            _id: savedUser._id,
+            user: savedUser,
+        }, { status: 201 });
     } catch (error) {
         console.error(`Error: ${error}`);
-        return NextResponse.error()
+        if ( error instanceof Error ) {
+            return NextResponse.json({ message: error.message }, { status: 500 });
+        }
     }
 }
